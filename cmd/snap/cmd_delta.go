@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"syscall"
 
@@ -62,10 +63,6 @@ type cmdDelta struct {
 	Format string `long:"format" short:"f"`
 }
 
-// supported delta formats for the CLI command, independent of
-// SNAPD_USE_DELTAS_EXPERIMENTAL which only gates store downloads
-var deltaFormats = []string{"snap-1-1-xdelta3", "xdelta3"}
-
 // override for testing
 var (
 	squashfsGenerateDelta = squashfs.GenerateDelta
@@ -95,6 +92,11 @@ func init() {
 }
 
 func (x *cmdDelta) Execute(args []string) error {
+	// The CLI tool works independently of the store delta download setting.
+	prev := os.Getenv("SNAPD_USE_DELTAS_EXPERIMENTAL")
+	os.Setenv("SNAPD_USE_DELTAS_EXPERIMENTAL", "1")
+	defer os.Setenv("SNAPD_USE_DELTAS_EXPERIMENTAL", prev)
+
 	// Listen for SIGINT/SIGTERM and cancel the context so that
 	// subprocesses (xdelta3, unsquashfs, mksquashfs) are stopped.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -112,13 +114,14 @@ func (x *cmdDelta) Execute(args []string) error {
 
 	switch x.Positional.Operation {
 	case "generate":
+		supportedFormats := squashfs.SupportedDeltaFormats(squashfs.DeltaFormatOpts{WithSnapDeltaFormat: true})
 		if x.Format == "" {
 			return fmt.Errorf(i18n.G("the --format flag is required for generate, supported formats: %s"),
-				strings.Join(deltaFormats, ", "))
+				strings.Join(supportedFormats, ", "))
 		}
-		if !strutil.ListContains(deltaFormats, x.Format) {
+		if !strutil.ListContains(supportedFormats, x.Format) {
 			return fmt.Errorf(i18n.G("unsupported delta format %q, supported formats: %s"),
-				x.Format, strings.Join(deltaFormats, ", "))
+				x.Format, strings.Join(supportedFormats, ", "))
 		}
 		fmt.Fprintf(Stdout, i18n.G("Using snap delta algorithm '%s'\n"), x.Format)
 		fmt.Fprintf(Stdout, i18n.G("Generating delta...\n"))
