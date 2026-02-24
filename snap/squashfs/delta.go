@@ -72,7 +72,13 @@ import (
 //
 // Reference for the squashfs superblock: https://dr-emann.github.io/squashfs
 
+type DeltaFormat int
+
 const (
+	// Identifiers for the formats in the API
+	Xdelta3Format DeltaFormat = iota
+	SnapXdelta3Format
+
 	// Identifiers for the store
 	xdelta3Format = "xdelta3"
 	// This follows compatibility labels conventions. First and second
@@ -266,9 +272,36 @@ func growSnapToMinSize(path string, minSize int64) error {
 	return nil
 }
 
-// SupportedDeltaFormats returns the list of supported delta format strings.
-func SupportedDeltaFormats() []string {
-	return []string{snapDeltaFormatXdelta3, xdelta3Format}
+func formatStoreString(id DeltaFormat) string {
+	switch id {
+	case Xdelta3Format:
+		return xdelta3Format
+	case SnapXdelta3Format:
+		return snapDeltaFormatXdelta3
+	}
+	return "unexpected"
+}
+
+type DeltaFormatOpts struct {
+	WithSnapDeltaFormat bool
+}
+
+// Supported delta formats. The order here is determines the preferred formats,
+// with lower indexes being preferred. This might become eventually
+// compatibility labels if necessary.
+func SupportedDeltaFormats(opts DeltaFormatOpts) []string {
+	// check if deltas were disabled by the environment
+	if !osutil.GetenvBool("SNAPD_USE_DELTAS_EXPERIMENTAL", true) {
+		// then the env var is explicitly false, we can't use deltas
+		logger.Noticef("delta usage disabled by environment variable")
+		return nil
+	}
+	var formats []string
+	if opts.WithSnapDeltaFormat {
+		formats = append(formats, formatStoreString(SnapXdelta3Format))
+	}
+	formats = append(formats, formatStoreString(Xdelta3Format))
+	return formats
 }
 
 // GenerateDelta creates a delta file called delta from sourceSnap and

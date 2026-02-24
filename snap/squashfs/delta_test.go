@@ -55,8 +55,10 @@ func (s *DeltaTestSuite) SetUpTest(c *C) {
 }
 
 func (s *DeltaTestSuite) TestSupportedDeltaFormats(c *C) {
-	c.Assert(squashfs.SupportedDeltaFormats(), DeepEquals,
+	c.Assert(squashfs.SupportedDeltaFormats(squashfs.DeltaFormatOpts{WithSnapDeltaFormat: true}), DeepEquals,
 		[]string{"snap-1-1-xdelta3", "xdelta3"})
+	c.Assert(squashfs.SupportedDeltaFormats(squashfs.DeltaFormatOpts{WithSnapDeltaFormat: false}), DeepEquals,
+		[]string{"xdelta3"})
 }
 
 func (s *DeltaTestSuite) TestCompIdToMksquashfsArgs(c *C) {
