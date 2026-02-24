@@ -62,6 +62,10 @@ type cmdDelta struct {
 	Format string `long:"format" short:"f"`
 }
 
+// supported delta formats for the CLI command, independent of
+// SNAPD_USE_DELTAS_EXPERIMENTAL which only gates store downloads
+var deltaFormats = []string{"snap-1-1-xdelta3", "xdelta3"}
+
 // override for testing
 var (
 	squashfsGenerateDelta = squashfs.GenerateDelta
@@ -108,14 +112,13 @@ func (x *cmdDelta) Execute(args []string) error {
 
 	switch x.Positional.Operation {
 	case "generate":
-		supportedFormats := squashfs.SupportedDeltaFormats(squashfs.DeltaFormatOpts{WithSnapDeltaFormat: true})
 		if x.Format == "" {
 			return fmt.Errorf(i18n.G("the --format flag is required for generate, supported formats: %s"),
-				strings.Join(supportedFormats, ", "))
+				strings.Join(deltaFormats, ", "))
 		}
-		if !strutil.ListContains(supportedFormats, x.Format) {
+		if !strutil.ListContains(deltaFormats, x.Format) {
 			return fmt.Errorf(i18n.G("unsupported delta format %q, supported formats: %s"),
-				x.Format, strings.Join(supportedFormats, ", "))
+				x.Format, strings.Join(deltaFormats, ", "))
 		}
 		fmt.Fprintf(Stdout, i18n.G("Using snap delta algorithm '%s'\n"), x.Format)
 		fmt.Fprintf(Stdout, i18n.G("Generating delta...\n"))
